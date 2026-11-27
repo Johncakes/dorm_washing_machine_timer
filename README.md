@@ -15,40 +15,35 @@
 
 ## 구성
 
-로컬 컴퓨터에서 실행하는 단순한 Vite 프로젝트입니다.
+로컬 컴퓨터에서 실행하는 Next.js(App Router) + TypeScript 프로젝트입니다. 화면과 API가 한 앱에 있으며 별도 서버가 필요 없습니다.
 
-- 화면: `index.html` + `src/app.js` + `src/style.css` (프레임워크 없음)
-- API: `server/laundry-server.mjs`의 `fetch` 형식 핸들러를 Vite 플러그인(`server/vite-plugin.mjs`)이 개발·미리보기 서버에 연결
-- 의존성: `vite` 하나
-
-기존 Sites **버전 6**(원본 커밋 `d87a1679c26a5d1fe3cc1aff72073d3114b1ebda`)에서 가져온 뒤 Sites·Next/Vinext·Cloudflare Worker 구성을 제거했습니다. 이 저장소는 기존 웹사이트(https://sinsa-smart-laundry.yeeuni0276.chatgpt.site/)에 배포되지 않으며, 기존 사이트는 이 변경의 영향을 받지 않습니다.
+기존 Sites **버전 6**(원본 커밋 `d87a1679c26a5d1fe3cc1aff72073d3114b1ebda`)에서 가져와 다시 구성했습니다. 이 저장소는 기존 웹사이트(https://sinsa-smart-laundry.yeeuni0276.chatgpt.site/)에 배포되지 않으며, 기존 사이트는 이 변경의 영향을 받지 않습니다.
 
 ## 로컬 실행
 
-Node.js **20.19 이상**과 npm이 필요합니다.
+Node.js **22.12 이상**이 필요합니다.
 
 ```sh
-git clone https://github.com/yeeuni-svg/dorm_washing_machine_timer.git
-cd dorm_washing_machine_timer
 npm install
 npm run gen-key > .env.local   # 세션 암호화 키 생성 (최초 1회)
-npm run dev                    # http://localhost:5173
+npm run dev                    # http://localhost:3000
 ```
 
-- `.env.local`이 없으면 실행할 때마다 임시 키를 만들기 때문에, 서버를 재시작하면 SmartThings에 다시 연결해야 합니다.
-- 빌드 결과 확인: `npm run build && npm run preview` (http://localhost:4173)
-- 테스트: `npm test` (모의 삼성 응답 사용, 네트워크 불필요)
+- `.env.local`이 없으면 임시 키를 사용하므로 서버를 재시작하면 다시 연결해야 합니다.
+- 운영 빌드: `npm run build && npm start`
+- 검사: `npm test`, `npm run lint`, `npm run typecheck`
 
 ## 주요 파일
 
 | 경로 | 역할 |
 | --- | --- |
-| `index.html` | 대시보드 마크업 |
-| `src/app.js`, `src/style.css` | 화면 동작과 스타일 |
-| `server/laundry-server.mjs` | 삼성 API 조회·상태 정규화·암호화 세션 |
-| `server/vite-plugin.mjs` | Node 요청 ↔ `fetch` 변환, localhost 전용 API 연결 |
-| `vite.config.js` | 서버 포트와 세션 키 로드 |
-| `tests/laundry-server.test.mjs` | 서버 테스트 |
+| `app/page.tsx`, `app/layout.tsx`, `app/globals.css` | 페이지와 스타일 |
+| `app/api/laundry/*/route.ts` | `connect`·`session`·`status`·`disconnect` API |
+| `components/` | 대시보드 UI 컴포넌트 (`LaundryDashboard`가 최상위) |
+| `hooks/useLiveConnection.ts` | 세션 복원, 10초 조회, 오류 시 대기, 연결·해제 |
+| `lib/laundry/` | 브라우저·서버 공용 타입, 표시 문구, API 클라이언트 |
+| `lib/server/` | 삼성 API 조회·상태 정규화(`smartthings`), 암호화 세션(`session`), 캐시, 요청 검사(`guard`) |
+| `tests/` | Vitest 테스트 (모의 삼성 응답 사용) |
 | `LIVE-CONNECTION.md` | 연결 구조 및 운영상 제약 |
 
 ## 보안 및 주의할 점
