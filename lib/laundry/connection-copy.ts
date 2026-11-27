@@ -12,7 +12,12 @@ export interface ConnectionView {
   visible: boolean;
 }
 
-export function badge({ active, phase }: ConnectionView): { text: string; tone: "connected" | "error" | null } {
+export interface Badge {
+  text: string;
+  tone: "connected" | "error" | null;
+}
+
+export function badge({ active, phase }: ConnectionView): Badge {
   const tone = active && phase === "connected" ? "connected" : phase === "error" || phase === "expired" ? "error" : null;
   const text = active ? (phase === "connected" ? "연결됨" : "확인 필요") : phase === "expired" ? "토큰 만료" : "미연결";
 

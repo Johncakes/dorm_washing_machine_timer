@@ -5,7 +5,29 @@ export const TOKEN = "test-token-for-local-checks-only-000";
 export const DEVICE_ID = "0b3ccce9-6d58-fbc3-52ab-5dae2abb1ff4";
 export const ORIGIN = "http://localhost:3000";
 
-export const runningWasher = {
+/** One SmartThings capability attribute as it appears in raw JSON. */
+export interface RawAttribute {
+  value?: string | number | null;
+  timestamp?: string;
+}
+
+/** The parts of a raw `GET /devices/{id}/status` body the tests build. */
+export interface RawWasherStatus {
+  components?: {
+    main?: {
+      "samsungce.washerOperatingState"?: {
+        operatingState?: RawAttribute;
+        remainingTime?: RawAttribute;
+        operationTime?: RawAttribute;
+        progress?: RawAttribute;
+        washerJobPhase?: RawAttribute;
+      };
+      washerOperatingState?: { machineState?: RawAttribute; completionTime?: RawAttribute };
+    };
+  };
+}
+
+export const runningWasher: RawWasherStatus = {
   components: {
     main: {
       "samsungce.washerOperatingState": {
@@ -29,13 +51,13 @@ export function apiRequest(
     base?: string;
   } = {},
 ): Request {
-  const headers: Record<string, string> = { host: new URL(base).host };
+  const headers = new Headers({ host: new URL(base).host });
 
-  if (cookie) headers.cookie = cookie;
+  if (cookie) headers.set("cookie", cookie);
 
   if (method === "POST") {
-    headers.origin = origin;
-    headers["content-type"] = "application/json";
+    headers.set("origin", origin);
+    headers.set("content-type", "application/json");
   }
 
   return new Request(`${base}/api/laundry/${path}`, {
@@ -54,11 +76,11 @@ export function mockSamsung(handler: (url: string, init: RequestInit) => Respons
 }
 
 /** A well-behaved SmartThings API that returns `status` for /status and ONLINE for /health. */
-export function healthySamsung(status: unknown = runningWasher) {
+export function healthySamsung(status: RawWasherStatus = runningWasher) {
   return mockSamsung((url, init) => {
     if (init.method !== "GET" || init.redirect !== "manual") throw new Error("unexpected request options");
 
-    if ((init.headers as Record<string, string>).Authorization !== `Bearer ${TOKEN}`) throw new Error("wrong token");
+    if (new Headers(init.headers).get("authorization") !== `Bearer ${TOKEN}`) throw new Error("wrong token");
 
     if (!url.startsWith(`https://api.smartthings.com/v1/devices/${DEVICE_ID}/`)) throw new Error(`unexpected url ${url}`);
 

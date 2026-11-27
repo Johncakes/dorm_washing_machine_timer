@@ -1,4 +1,5 @@
 import "server-only";
+import { z } from "zod";
 import { LIVE_WASHER_ID, type LiveWasherState, type MachineStatus } from "@/lib/laundry/types";
 
 /** SmartThings device ID of washer 5. */
@@ -17,6 +18,123 @@ export class UpstreamError extends Error {
   }
 }
 
+// --- Response schemas -------------------------------------------------------
+// Lenient on purpose: a missing or malformed attribute becomes null/undefined
+// instead of failing the whole reading, and is then shown as unknown, never guessed.
+
+const MODERN_STATES = ["running", "paused", "ready"] as const;
+const LEGACY_STATES = ["run", "pause", "stop", "idle"] as const;
+
+const JOB_PHASES = [
+  "drumCleaning",
+  "wash",
+  "washing",
+  "rinse",
+  "rinsing",
+  "spin",
+  "spinning",
+  "finish",
+  "finished",
+  "none",
+] as const;
+
+/** One capability attribute `{ value, timestamp }` whose value must match `value`. */
+const attribute = <V extends z.ZodType>(value: V) =>
+  z
+    .object({
+      value: value.nullish().catch(null),
+      timestamp: z.string().optional().catch(undefined),
+    })
+    .optional()
+    .catch(undefined);
+
+const ModernCapabilitySchema = z
+  .object({
+    operatingState: attribute(z.enum(MODERN_STATES)),
+    remainingTime: attribute(z.number()),
+    operationTime: attribute(z.number()),
+    progress: attribute(z.number()),
+    washerJobPhase: attribute(z.enum(JOB_PHASES)),
+    washerJobState: attribute(z.enum(JOB_PHASES)),
+  })
+  .optional()
+  .catch(undefined);
+
+const LegacyCapabilitySchema = z
+  .object({
+    machineState: attribute(z.enum(LEGACY_STATES)),
+    washerJobState: attribute(z.enum(JOB_PHASES)),
+    completionTime: attribute(z.string()),
+  })
+  .optional()
+  .catch(undefined);
+
+/** `GET /devices/{id}/status`. Anything unexpected parses to an empty reading. */
+export const DeviceStatusSchema = z
+  .object({
+    components: z
+      .object({
+        main: z
+          .object({
+            "samsungce.washerOperatingState": ModernCapabilitySchema,
+            washerOperatingState: LegacyCapabilitySchema,
+          })
+          .optional()
+          .catch(undefined),
+      })
+      .optional()
+      .catch(undefined),
+  })
+  .catch({});
+
+/** `GET /devices/{id}/health`. */
+export const DeviceHealthSchema = z.object({ state: z.string().optional().catch(undefined) }).catch({});
+
+export type DeviceStatus = z.infer<typeof DeviceStatusSchema>;
+
+export type DeviceHealth = z.infer<typeof DeviceHealthSchema>;
+
+// --- Mapping ----------------------------------------------------------------
+
+const FROM_MODERN = {
+  running: "running",
+  paused: "paused",
+  ready: "ready",
+} as const satisfies Record<(typeof MODERN_STATES)[number], MachineStatus>;
+
+const FROM_LEGACY = {
+  run: "running",
+  pause: "paused",
+  stop: "ready",
+  idle: "ready",
+} as const satisfies Record<(typeof LEGACY_STATES)[number], MachineStatus>;
+
+const COURSE_NAMES = {
+  drumCleaning: "무세제 통세척",
+  wash: "세탁",
+  washing: "세탁",
+  rinse: "헹굼",
+  rinsing: "헹굼",
+  spin: "탈수",
+  spinning: "탈수",
+  finish: "완료",
+  finished: "완료",
+  none: "대기",
+} as const satisfies Record<(typeof JOB_PHASES)[number], string>;
+
+function fallbackCourse(status: MachineStatus): string {
+  switch (status) {
+    case "running":
+      return "세탁 중";
+    case "paused":
+      return "일시정지";
+    case "ready":
+      return "작동하지 않음";
+    default:
+      return "상태 확인 필요";
+  }
+}
+
 /** Backoff in seconds from Retry-After or SmartThings' x-ratelimit-reset (ms), clamped to 10–300. */
 function retrySeconds(response: Response): number {
   const seconds = Number(response.headers.get("retry-after"));
@@ -26,7 +144,58 @@ function retrySeconds(response: Response): number {
   return Math.max(10, Math.min(300, wait));
 }
 
-async function samsungGet(path: "/status" | "/health", token: string): Promise<unknown> {
+/**
+ * Converts a parsed SmartThings washer status into the dashboard's shape.
+ * Missing or unreliable values become `null`; they are never guessed.
+ */
+export function normalizeStatus(
+  device: DeviceStatus,
+  health: DeviceHealth | null,
+  checkedAt = new Date().toISOString(),
+): LiveWasherState {
+  const main = device.components?.main;
+  const modern = main?.["samsungce.washerOperatingState"];
+  const legacy = main?.washerOperatingState;
+  const healthState = health?.state;
+
+  const online = healthState !== "OFFLINE";
+  const modernState = modern?.operatingState?.value;
+  const legacyState = legacy?.machineState?.value;
+
+  const status: MachineStatus = !online
+    ? "offline"
+    : modernState
+      ? FROM_MODERN[modernState]
+      : legacyState
+        ? FROM_LEGACY[legacyState]
+        : "unavailable";
+
+  const remainingValue = modern?.remainingTime?.value;
+  const remaining = status === "running" && remainingValue != null && remainingValue >= 0 ? Math.round(remainingValue) : null;
+  const progress = modern?.progress?.value;
+  const duration = modern?.operationTime?.value;
+  const phase = modern?.washerJobPhase?.value ?? modern?.washerJobState?.value ?? legacy?.washerJobState?.value;
+
+  return {
+    id: LIVE_WASHER_ID,
+    status,
+    remaining,
+    total: duration != null && duration > 0 ? duration : null,
+    progress: progress == null ? null : Math.min(100, Math.max(0, progress)),
+    course: phase ? COURSE_NAMES[phase] : fallbackCourse(status),
+    online,
+    healthKnown: healthState !== undefined,
+    checkedAt,
+    updatedAt: modern?.remainingTime?.timestamp ?? modern?.operatingState?.timestamp ?? legacy?.machineState?.timestamp ?? null,
+    completionTime: legacy?.completionTime?.value ?? null,
+    live: true,
+  };
+}
+
+// --- HTTP -------------------------------------------------------------------
+
+/** GETs a device endpoint and parses it with `schema`. Unparseable bodies are a 502. */
+async function samsungGet<S extends z.ZodType>(path: "/status" | "/health", token: string, schema: S): Promise<z.infer<S>> {
   let response: Response;
 
   try {
@@ -46,109 +215,23 @@ async function samsungGet(path: "/status" | "/health", token: string): Promise<u
 
   if (!response.ok) throw new UpstreamError(response.status, retrySeconds(response));
 
-  try {
-    return await response.json();
-  } catch {
+  const json = await response.json().catch(() => {
     throw new UpstreamError(502);
-  }
-}
+  });
 
-// Minimal shape of the SmartThings capability attributes we read.
-interface Attribute<T = unknown> {
-  value?: T | null;
-  timestamp?: string;
-}
+  const parsed = schema.safeParse(json);
 
-type Capability = Record<string, Attribute | undefined>;
+  if (!parsed.success) throw new UpstreamError(502);
 
-interface DeviceStatus {
-  components?: { main?: Record<string, Capability | undefined> };
-}
-
-interface DeviceHealth {
-  state?: string;
-}
-
-const MODERN_STATES: Record<string, MachineStatus> = { running: "running", paused: "paused", ready: "ready" };
-const LEGACY_STATES: Record<string, MachineStatus> = { run: "running", pause: "paused", stop: "ready", idle: "ready" };
-
-const COURSE_NAMES: Record<string, string> = {
-  drumCleaning: "무세제 통세척",
-  wash: "세탁",
-  washing: "세탁",
-  rinse: "헹굼",
-  rinsing: "헹굼",
-  spin: "탈수",
-  spinning: "탈수",
-  finish: "완료",
-  finished: "완료",
-  none: "대기",
-};
-
-const FALLBACK_COURSE: Partial<Record<MachineStatus, string>> = {
-  running: "세탁 중",
-  paused: "일시정지",
-  ready: "작동하지 않음",
-};
-
-const finite = (value: unknown): number | null => {
-  if (value === null || value === undefined || value === "") return null;
-  const n = Number(value);
-
-  return Number.isFinite(n) ? n : null;
-};
-
-/**
- * Converts raw SmartThings washer status into the dashboard's shape.
- * Missing or unreliable values become `null`; they are never guessed.
- */
-export function normalizeStatus(
-  raw: unknown,
-  health: unknown,
-  checkedAt = new Date().toISOString(),
-): LiveWasherState {
-  const main = (raw as DeviceStatus | null)?.components?.main ?? {};
-  const modern = main["samsungce.washerOperatingState"] ?? {};
-  const standard = main.washerOperatingState ?? {};
-  const healthState = (health as DeviceHealth | null)?.state;
-
-  const online = healthState !== "OFFLINE";
-  const op = String(modern.operatingState?.value ?? "");
-  const legacy = String(standard.machineState?.value ?? "");
-  const status: MachineStatus = !online ? "offline" : MODERN_STATES[op] ?? LEGACY_STATES[legacy] ?? "unavailable";
-
-  const remainingValue = finite(modern.remainingTime?.value);
-  const remaining = status === "running" && remainingValue !== null && remainingValue >= 0 ? Math.round(remainingValue) : null;
-  const progressValue = finite(modern.progress?.value);
-  const duration = finite(modern.operationTime?.value);
-
-  const phase = String(
-    modern.washerJobPhase?.value ?? modern.washerJobState?.value ?? standard.washerJobState?.value ?? "",
-  );
-
-  return {
-    id: LIVE_WASHER_ID,
-    status,
-    remaining,
-    total: duration !== null && duration > 0 ? duration : null,
-    progress: progressValue === null ? null : Math.min(100, Math.max(0, progressValue)),
-    course: COURSE_NAMES[phase] ?? FALLBACK_COURSE[status] ?? "상태 확인 필요",
-    online,
-    healthKnown: typeof healthState === "string",
-    checkedAt,
-    updatedAt:
-      modern.remainingTime?.timestamp ?? modern.operatingState?.timestamp ?? standard.machineState?.timestamp ?? null,
-    completionTime: (standard.completionTime?.value as string | undefined) ?? null,
-    live: true,
-  };
+  return parsed.data;
 }
 
 /** Reads washer 5. Health is optional: if it fails, the device is assumed online. */
 export async function readWasherStatus(token: string): Promise<LiveWasherState> {
-  const [raw, health] = await Promise.all([
-    samsungGet("/status", token),
-    samsungGet("/health", token).catch(() => null),
+  const [device, health] = await Promise.all([
+    samsungGet("/status", token, DeviceStatusSchema),
+    samsungGet("/health", token, DeviceHealthSchema).catch(() => null),
   ]);
 
-  return normalizeStatus(raw, health);
+  return normalizeStatus(device, health);
 }

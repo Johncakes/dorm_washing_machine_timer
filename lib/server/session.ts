@@ -1,14 +1,17 @@
 import "server-only";
+import { z } from "zod";
 import { DEVICE_ID } from "./smartthings";
 
 /** Session stored, encrypted, in the browser cookie. */
-export interface Session {
-  id: string;
-  userId: string;
-  token: string;
-  deviceId: string;
-  expiresAt: number;
-}
+const SessionSchema = z.object({
+  id: z.string(),
+  userId: z.string(),
+  token: z.string(),
+  deviceId: z.string(),
+  expiresAt: z.number(),
+});
+
+export type Session = z.infer<typeof SessionSchema>;
 
 export const SESSION_MAX_AGE_SECONDS = 24 * 60 * 60;
 
@@ -21,7 +24,8 @@ const PLAIN_COOKIE = "laundry-session";
 const AAD = new TextEncoder().encode("laundry-session/v1");
 const MAX_COOKIE_LENGTH = 3800;
 
-export const isValidSessionKey = (key: unknown): key is string => typeof key === "string" && /^[0-9a-f]{64}$/.test(key);
+/** A session key is 32 bytes as 64 lowercase hex characters. */
+export const isValidSessionKey = (key: string | undefined): boolean => key !== undefined && /^[0-9a-f]{64}$/.test(key);
 
 function base64url(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("base64url");
@@ -64,17 +68,14 @@ export async function openSession(
       fromBase64url(cipher),
     );
 
-    const session = JSON.parse(new TextDecoder().decode(plain)) as Partial<Session>;
+    const parsed = SessionSchema.safeParse(JSON.parse(new TextDecoder().decode(plain)));
 
-    const valid =
-      session.userId === userId &&
-      typeof session.expiresAt === "number" &&
-      session.expiresAt > now &&
-      session.deviceId === DEVICE_ID &&
-      typeof session.token === "string" &&
-      typeof session.id === "string";
+    if (!parsed.success) return null;
 
-    return valid ? (session as Session) : null;
+    const session = parsed.data;
+    const valid = session.userId === userId && session.expiresAt > now && session.deviceId === DEVICE_ID;
+
+    return valid ? session : null;
   } catch {
     return null;
   }

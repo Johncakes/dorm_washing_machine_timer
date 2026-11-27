@@ -1,4 +1,4 @@
-import { STATUS_LABELS, courseLine, machineAriaLabel, machineName, sourceLabel } from "@/lib/laundry/format";
+import { STATUS_LABELS, courseLine, isNumber, machineAriaLabel, machineName, sourceLabel } from "@/lib/laundry/format";
 import type { Machine, MachineKind } from "@/lib/laundry/types";
 import { MachineClock } from "./MachineClock";
 import { ModelIcon, VentIcon } from "./icons";
@@ -52,7 +52,7 @@ export function MachineCard({ machine, kind, exampleMode, onSelect }: MachineCar
         </div>
       </button>
       <p className="machine-caption">
-        {running && typeof machine.progress === "number" && (
+        {running && isNumber(machine.progress) && (
           <>
             진행률 <strong>{machine.progress}%</strong> <span aria-hidden="true">·</span>{" "}
           </>

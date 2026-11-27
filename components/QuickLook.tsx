@@ -1,4 +1,4 @@
-import { KIND_LABELS, STATUS_LABELS, formatMinutes, machineName, remainingFraction, soonestFinishing } from "@/lib/laundry/format";
+import { KIND_LABELS, STATUS_LABELS, formatMinutes, isNumber, machineName, remainingFraction, soonestFinishing } from "@/lib/laundry/format";
 import type { Machine, MachineKind } from "@/lib/laundry/types";
 
 interface QuickLookProps {
@@ -25,7 +25,7 @@ export function QuickLook({ machines, kind, connectedMachine, recordLabel }: Qui
         <span>남음</span>
       </>
     );
-    caption = `${soonest.course ?? ""}${typeof soonest.progress === "number" ? ` · 진행률 ${soonest.progress}%` : ""}`;
+    caption = `${soonest.course ?? ""}${isNumber(soonest.progress) ? ` · 진행률 ${soonest.progress}%` : ""}`;
   } else if (connectedMachine) {
     name = machineName("washer", connectedMachine.id);
     time = STATUS_LABELS[connectedMachine.status];

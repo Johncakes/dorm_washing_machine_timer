@@ -18,12 +18,17 @@ export const KIND_LABELS: Record<MachineKind, string> = { washer: "세탁기", d
 
 export const machineName = (kind: MachineKind, id: number) => `${KIND_LABELS[kind]} ${id}번`;
 
-/** True when there is a real remaining time to show. */
-export function isTimed(m: Machine): m is Machine & { remaining: number } {
-  return m.status === "running" && typeof m.remaining === "number" && Number.isFinite(m.remaining);
+/** True for a reported, finite number; false for null/undefined/NaN. */
+export function isNumber(value: number | null | undefined): value is number {
+  return value != null && Number.isFinite(value);
 }
 
-const isNumber = (value: number | null | undefined): value is number => typeof value === "number" && Number.isFinite(value);
+/** True when there is a real remaining time to show. */
+export function isTimed(m: Machine): m is Machine & { remaining: number } {
+  return m.status === "running" && isNumber(m.remaining);
+}
+
+
 
 /** Fraction of the cycle still left (0–1): from remaining/total, else from progress. */
 export function remainingFraction(m: Machine): number {

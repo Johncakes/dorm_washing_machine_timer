@@ -1,8 +1,9 @@
+import { ConnectRequestSchema } from "@/lib/laundry/schemas";
 import { POLL_INTERVAL_MS, type StatusResponse } from "@/lib/laundry/types";
 import { guard } from "@/lib/server/guard";
 import { apiError, json, upstreamErrorResponse } from "@/lib/server/responses";
 import { SESSION_MAX_AGE_SECONDS, sealSession, sessionCookie } from "@/lib/server/session";
-import { DEVICE_ID, readWasherStatus } from "@/lib/server/smartthings";
+import { DEVICE_ID, UpstreamError, readWasherStatus } from "@/lib/server/smartthings";
 import { rememberStatus } from "@/lib/server/status-cache";
 
 const MAX_BODY_LENGTH = 4096;
@@ -13,8 +14,12 @@ async function readToken(request: Request): Promise<string | null> {
     const text = await request.text();
 
     if (text.length > MAX_BODY_LENGTH) return null;
-    const body = JSON.parse(text) as { token?: unknown };
-    const token = String(body.token ?? "").trim().replace(/^Bearer\s+/i, "");
+
+    const body = ConnectRequestSchema.safeParse(JSON.parse(text));
+
+    if (!body.success) return null;
+
+    const token = body.data.token.trim().replace(/^Bearer\s+/i, "");
 
     return TOKEN_PATTERN.test(token) ? token : null;
   } catch {
@@ -50,6 +55,6 @@ export async function POST(request: Request) {
       "Set-Cookie": cookie,
     });
   } catch (error) {
-    return upstreamErrorResponse(error, ctx.secure);
+    return upstreamErrorResponse(error instanceof UpstreamError ? error : new UpstreamError(503), ctx.secure);
   }
 }

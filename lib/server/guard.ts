@@ -18,7 +18,10 @@ export interface RequestContext {
   userId: string;
 }
 
-const keyStore = globalThis as typeof globalThis & { __laundryTempKey?: string };
+declare global {
+  // Temporary session key when LAUNDRY_SESSION_KEY is unset; on globalThis so every route bundle shares it.
+  var __laundryTempKey: string | undefined;
+}
 
 /** LAUNDRY_SESSION_KEY from .env.local, or a per-process temporary key if it is unset. */
 function sessionKey(): string | null {
@@ -26,14 +29,14 @@ function sessionKey(): string | null {
 
   if (configured) return isValidSessionKey(configured) ? configured : null;
 
-  if (!keyStore.__laundryTempKey) {
+  if (!globalThis.__laundryTempKey) {
     console.warn(
       "[laundry] LAUNDRY_SESSION_KEY is not set. Using a temporary key; you will need to reconnect after every restart. Run `npm run gen-key >> .env.local` to keep sessions.",
     );
-    keyStore.__laundryTempKey = randomBytes(32).toString("hex");
+    globalThis.__laundryTempKey = randomBytes(32).toString("hex");
   }
 
-  return keyStore.__laundryTempKey;
+  return globalThis.__laundryTempKey;
 }
 
 function isLocalHost(request: Request): boolean {

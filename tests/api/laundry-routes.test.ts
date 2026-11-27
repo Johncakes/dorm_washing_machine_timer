@@ -76,7 +76,7 @@ describe("connect → status → disconnect", () => {
 
     const fetch = mockSamsung((url) =>
       Response.json(url.endsWith("/health") ? { state: "ONLINE" } : {
-        components: { main: { "samsungce.washerOperatingState": { ...runningWasher.components.main["samsungce.washerOperatingState"], remainingTime: { value: remaining } } } },
+        components: { main: { "samsungce.washerOperatingState": { ...runningWasher.components?.main?.["samsungce.washerOperatingState"], remainingTime: { value: remaining } } } },
       }),
     );
 

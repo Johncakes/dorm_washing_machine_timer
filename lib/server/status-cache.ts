@@ -9,8 +9,11 @@ type Entry = { state: LiveWasherState; until: number } | { pending: Promise<Live
 
 // Next.js bundles each route separately, so module-level state isn't guaranteed to be
 // shared between routes. Keep the cache on globalThis so connect/status/disconnect see one map.
-const store = globalThis as typeof globalThis & { __laundryStatusCache?: Map<string, Entry> };
-const cache = (store.__laundryStatusCache ??= new Map());
+declare global {
+  var __laundryStatusCache: Map<string, Entry> | undefined;
+}
+
+const cache = (globalThis.__laundryStatusCache ??= new Map());
 
 function prune(now: number) {
   if (cache.size <= MAX_ENTRIES) return;

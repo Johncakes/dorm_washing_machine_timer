@@ -2,6 +2,7 @@ import {
   STATUS_LABELS,
   detailNote,
   formatMinutes,
+  isNumber,
   isTimed,
   koreanTime,
   machineName,
@@ -28,7 +29,7 @@ function facts(m: Machine, exampleMode: boolean): [string, string][] {
   if (m.status === "running") {
     rows.push(
       ["남은 시간", isTimed(m) ? formatMinutes(m.remaining) : "확인 중"],
-      ["진행률", typeof m.progress === "number" ? `${m.progress}%` : "확인 중"],
+      ["진행률", isNumber(m.progress) ? `${m.progress}%` : "확인 중"],
       ["현재 과정", m.course ?? "확인 중"],
     );
   }

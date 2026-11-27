@@ -1,16 +1,21 @@
-/** Types shared by the API routes and the dashboard UI. */
+/** Types shared by the API routes and the dashboard UI. API types are derived from `schemas.ts`. */
+import type { z } from "zod";
+import type {
+  ApiErrorSchema,
+  ConnectRequestSchema,
+  DisconnectRequestSchema,
+  DisconnectResponseSchema,
+  LiveWasherStateSchema,
+  MachineStatusSchema,
+  SessionResponseSchema,
+  StatusResponseSchema,
+} from "./schemas";
 
 export type MachineKind = "washer" | "dryer";
 
-export type MachineStatus =
-  | "running"
-  | "ready"
-  | "paused"
-  | "unavailable"
-  | "unknown"
-  | "error"
-  | "offline";
+export type MachineStatus = z.infer<typeof MachineStatusSchema>;
 
+/** A machine as the dashboard draws it: demo data, an unconnected slot, or the live washer. */
 export interface Machine {
   id: number;
   status: MachineStatus;
@@ -29,55 +34,21 @@ export interface Machine {
   updatedAt?: string | null;
 }
 
-/** Washer state returned by `/api/laundry/status` and `/api/laundry/connect`. */
-export interface LiveWasherState extends Machine {
-  live: true;
-  online: boolean;
-  healthKnown: boolean;
-  checkedAt: string;
-  updatedAt: string | null;
-  completionTime: string | null;
-}
+export type LiveWasherState = z.infer<typeof LiveWasherStateSchema>;
 
-export type ApiErrorCode =
-  | "BAD_TOKEN"
-  | "CONTENT_TYPE"
-  | "ORIGIN_REJECTED"
-  | "LOCAL_ONLY"
-  | "SERVER_SETUP"
-  | "NOT_CONNECTED"
-  | "TOKEN_EXPIRED"
-  | "PERMISSION"
-  | "DEVICE_NOT_FOUND"
-  | "PLAN_REQUIRED"
-  | "RATE_LIMIT"
-  | "UPSTREAM_UNAVAILABLE"
-  // Client-side only
-  | "NETWORK"
-  | "BAD_RESPONSE";
+export type ApiError = z.infer<typeof ApiErrorSchema>;
 
-export interface ApiError {
-  code: ApiErrorCode;
-  message: string;
-  /** Seconds to wait before retrying. */
-  retryAfter?: number;
-}
+export type ApiErrorCode = ApiError["code"];
 
-export interface SessionResponse {
-  connected: boolean;
-  deviceId: string | null;
-  pollIntervalMs: number;
-}
+export type SessionResponse = z.infer<typeof SessionResponseSchema>;
 
-export interface StatusResponse {
-  connected: true;
-  state: LiveWasherState;
-  pollIntervalMs: number;
-}
+export type StatusResponse = z.infer<typeof StatusResponseSchema>;
 
-export interface DisconnectResponse {
-  connected: false;
-}
+export type DisconnectResponse = z.infer<typeof DisconnectResponseSchema>;
+
+export type ConnectRequest = z.infer<typeof ConnectRequestSchema>;
+
+export type DisconnectRequest = z.infer<typeof DisconnectRequestSchema>;
 
 /** The only washer currently registered in SmartThings. */
 export const LIVE_WASHER_ID = 5;

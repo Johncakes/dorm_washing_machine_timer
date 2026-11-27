@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useReducer } from "react";
-import { laundryApi, toApiError } from "@/lib/laundry/api-client";
+import { laundryApi } from "@/lib/laundry/api-client";
 import type { LivePhase } from "@/lib/laundry/connection-copy";
 import { LIVE_WASHER_ID, POLL_INTERVAL_MS, type ApiError, type LiveWasherState, type Machine } from "@/lib/laundry/types";
 import { usePageVisible } from "./usePageVisible";
-
 
 export interface Feedback {
   message: string;
@@ -131,17 +130,15 @@ export function useLiveConnection() {
   // Restore an existing session on load.
   useEffect(() => {
     let cancelled = false;
-    laundryApi.session().then(
-      (session) => {
-        if (!cancelled && session.connected) dispatch({ type: "sessionRestored" });
-      },
-      (error) => {
-        const apiError = toApiError(error, "");
+    void laundryApi.session().then((result) => {
+      if (cancelled) return;
 
-        if (!cancelled && (apiError.code === "SERVER_SETUP" || apiError.code === "LOCAL_ONLY"))
-          dispatch({ type: "setupError", message: apiError.message });
-      },
-    );
+      if (result.ok) {
+        if (result.data.connected) dispatch({ type: "sessionRestored" });
+      } else if (result.error.code === "SERVER_SETUP" || result.error.code === "LOCAL_ONLY") {
+        dispatch({ type: "setupError", message: result.error.message });
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -156,20 +153,14 @@ export function useLiveConnection() {
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const poll = async () => {
-      let delay = POLL_INTERVAL_MS;
+      const result = await laundryApi.status();
 
-      try {
-        const body = await laundryApi.status();
+      if (cancelled) return;
 
-        if (!cancelled) dispatch({ type: "live", state: body.state });
-      } catch (error) {
-        const apiError = toApiError(error, "최신 정보를 확인하지 못했어요.");
+      if (result.ok) dispatch({ type: "live", state: result.data.state });
+      else dispatch({ type: "pollFailed", error: result.error });
 
-        if (!cancelled) dispatch({ type: "pollFailed", error: apiError });
-        delay = retryDelay(apiError);
-      }
-
-      if (!cancelled) timer = setTimeout(poll, delay);
+      timer = setTimeout(poll, result.ok ? POLL_INTERVAL_MS : retryDelay(result.error));
     };
 
     void poll();
@@ -183,23 +174,19 @@ export function useLiveConnection() {
   const connect = useCallback(async (token: string) => {
     dispatch({ type: "connecting" });
 
-    try {
-      const body = await laundryApi.connect(token);
-      dispatch({ type: "connected", state: body.state });
-    } catch (error) {
-      dispatch({ type: "connectFailed", error: toApiError(error, "연결하지 못했어요. 다시 시도해 주세요.") });
-    }
+    const result = await laundryApi.connect(token);
+
+    if (result.ok) dispatch({ type: "connected", state: result.data.state });
+    else dispatch({ type: "connectFailed", error: result.error });
   }, []);
 
   const disconnect = useCallback(async () => {
     dispatch({ type: "disconnecting" });
 
-    try {
-      await laundryApi.disconnect();
-      dispatch({ type: "disconnected" });
-    } catch (error) {
-      dispatch({ type: "disconnectFailed", error: toApiError(error, "연결 해제를 완료하지 못했어요.") });
-    }
+    const result = await laundryApi.disconnect();
+
+    if (result.ok) dispatch({ type: "disconnected" });
+    else dispatch({ type: "disconnectFailed", error: result.error });
   }, []);
 
   const setFeedback = useCallback((feedback: Feedback | null) => dispatch({ type: "feedback", feedback }), []);

@@ -2,7 +2,7 @@ import { POLL_INTERVAL_MS, type StatusResponse } from "@/lib/laundry/types";
 import { guard } from "@/lib/server/guard";
 import { apiError, json, upstreamErrorResponse } from "@/lib/server/responses";
 import { clearedSessionCookie, loadSession } from "@/lib/server/session";
-import { readWasherStatus } from "@/lib/server/smartthings";
+import { UpstreamError, readWasherStatus } from "@/lib/server/smartthings";
 import { cachedStatus } from "@/lib/server/status-cache";
 
 /** Current washer 5 state. Reads Samsung at most once per cache window per session. */
@@ -24,6 +24,6 @@ export async function GET(request: Request) {
 
     return json<StatusResponse>({ connected: true, state, pollIntervalMs: POLL_INTERVAL_MS });
   } catch (error) {
-    return upstreamErrorResponse(error, ctx.secure);
+    return upstreamErrorResponse(error instanceof UpstreamError ? error : new UpstreamError(503), ctx.secure);
   }
 }

@@ -25,8 +25,8 @@ export function apiError(
 }
 
 /** Maps a failed SmartThings read to a safe, user-facing Korean error. Never echoes upstream bodies. */
-export function upstreamErrorResponse(error: unknown, secure: boolean): Response {
-  const status = error instanceof UpstreamError ? error.status : 503;
+export function upstreamErrorResponse(error: UpstreamError, secure: boolean): Response {
+  const status = error.status;
 
   switch (status) {
     case 401:
@@ -40,7 +40,7 @@ export function upstreamErrorResponse(error: unknown, secure: boolean): Response
     case 402:
       return apiError("PLAN_REQUIRED", "삼성에서 API 이용 조건 또는 사용량 확인을 요청했어요. 자동 조회를 중지했습니다.", 402);
     case 429: {
-      const retryAfter = (error as UpstreamError).retryAfter;
+      const retryAfter = error.retryAfter;
 
       return apiError("RATE_LIMIT", "조회 요청이 잠시 제한됐어요. 잠시 후 다시 확인합니다.", 429, {
         retryAfter,
