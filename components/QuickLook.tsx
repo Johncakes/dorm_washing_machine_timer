@@ -16,6 +16,7 @@ export function QuickLook({ machines, kind, connectedMachine, recordLabel }: Qui
   let name: string;
   let time: React.ReactNode;
   let caption: string;
+
   if (soonest) {
     name = machineName(kind, soonest.id);
     time = (

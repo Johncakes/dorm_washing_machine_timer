@@ -9,6 +9,7 @@ interface StatusSummaryProps {
 /** "대기 중 3대 · 작동 중 2대 …" row above the grid. */
 export function StatusSummary({ machines, mode }: StatusSummaryProps) {
   const counts = countByStatus(machines);
+
   return (
     <div className="status-summary" id="status-summary" aria-live="polite">
       {SUMMARY_ORDER.filter((status) => counts[status]).map((status) => (

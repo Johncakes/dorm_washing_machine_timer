@@ -33,6 +33,7 @@ export function remainingFraction(m: Machine): number {
       : isNumber(m.progress)
         ? 1 - m.progress / 100
         : 1;
+
   return Math.min(1, Math.max(0, raw));
 }
 
@@ -43,13 +44,16 @@ export function splitMinutes(minutes: number) {
 /** "1시간 5분", "1시간", "5분", "0분". */
 export function formatMinutes(minutes: number): string {
   const { hours, mins } = splitMinutes(minutes);
+
   return [hours ? `${hours}시간` : "", mins || !hours ? `${mins}분` : ""].filter(Boolean).join(" ");
 }
 
 /** HH:MM:SS in Korea time, or "확인 중" if the value isn't a date. */
 export function koreanTime(value: string | null | undefined): string {
   const date = new Date(value ?? "");
+
   if (Number.isNaN(date.valueOf())) return "확인 중";
+
   return date.toLocaleTimeString("ko-KR", {
     timeZone: "Asia/Seoul",
     hour12: false,
@@ -98,11 +102,13 @@ export function courseLine(m: Machine, kind: MachineKind): string {
 /** Where the data on a card came from. */
 export function sourceLabel(m: Machine): string {
   if (m.live) return "실제 조회";
+
   return m.status === "unknown" ? "연결 후 상태가 표시돼요" : "상태 예시";
 }
 
 export function sourceDescription(m: Machine, exampleMode: boolean): string {
   if (m.live) return "SmartThings API 실제 조회";
+
   return exampleMode ? "디자인 예시" : "아직 연결되지 않은 기기";
 }
 
@@ -110,6 +116,7 @@ export function sourceDescription(m: Machine, exampleMode: boolean): string {
 export function machineAriaLabel(m: Machine, kind: MachineKind, exampleMode: boolean): string {
   const time = isTimed(m) ? `, ${formatMinutes(m.remaining)} 남음` : "";
   const source = m.live ? "삼성 API 조회" : exampleMode ? "디자인 예시" : "기기 미연동";
+
   return `${machineName(kind, m.id)}, ${STATUS_LABELS[m.status]}${time}. ${source}. 자세히 보기`;
 }
 
@@ -117,6 +124,7 @@ export function machineAriaLabel(m: Machine, kind: MachineKind, exampleMode: boo
 export function detailNote(m: Machine): string {
   if (m.live && (m.status === "offline" || m.status === "unavailable"))
     return "최신 상태를 확인하지 못해 남은 시간을 표시하지 않습니다. 연결이 복구되면 다시 확인합니다.";
+
   switch (m.status) {
     case "unknown":
       return "기기를 연결하면 작동 상태와 남은 시간을 확인할 수 있어요.";
@@ -131,7 +139,9 @@ export function detailNote(m: Machine): string {
 
 export function countByStatus(machines: Machine[]): Partial<Record<MachineStatus, number>> {
   const counts: Partial<Record<MachineStatus, number>> = {};
+
   for (const m of machines) counts[m.status] = (counts[m.status] ?? 0) + 1;
+
   return counts;
 }
 

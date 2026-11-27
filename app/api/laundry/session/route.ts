@@ -7,9 +7,11 @@ import { DEVICE_ID } from "@/lib/server/smartthings";
 /** Reports whether this browser has a valid connection. Never contacts Samsung. */
 export async function GET(request: Request) {
   const ctx = guard(request);
+
   if (ctx instanceof Response) return ctx;
 
   const session = await loadSession(request, ctx);
+
   return json<SessionResponse>({
     connected: !!session,
     deviceId: session ? DEVICE_ID : null,

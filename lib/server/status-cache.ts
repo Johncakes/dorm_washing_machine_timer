@@ -14,6 +14,7 @@ const cache = (store.__laundryStatusCache ??= new Map());
 
 function prune(now: number) {
   if (cache.size <= MAX_ENTRIES) return;
+
   for (const [id, entry] of cache) if ("state" in entry && entry.until < now) cache.delete(id);
 }
 
@@ -33,14 +34,18 @@ export async function cachedStatus(sessionId: string, read: () => Promise<LiveWa
   const now = Date.now();
   prune(now);
   const entry = cache.get(sessionId);
+
   if (entry && "state" in entry && entry.until >= now) return entry.state;
+
   if (entry && "pending" in entry) return entry.pending;
 
   const pending = read();
   cache.set(sessionId, { pending, until: 0 });
+
   try {
     const state = await pending;
     rememberStatus(sessionId, state);
+
     return state;
   } catch (error) {
     forgetStatus(sessionId);

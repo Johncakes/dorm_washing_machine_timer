@@ -16,11 +16,13 @@ const TICKS = Array.from({ length: 60 }, (_, i) => {
   const major = i % 5 === 0;
   const from = point(angle, major ? 85 : 88);
   const to = point(angle, 91);
+
   return { i, major, from, to };
 });
 
 function RemainingTime({ minutes }: { minutes: number }) {
   const { hours, mins } = splitMinutes(minutes);
+
   if (!hours) {
     return (
       <span className="clock-time compact">
@@ -29,6 +31,7 @@ function RemainingTime({ minutes }: { minutes: number }) {
       </span>
     );
   }
+
   return (
     <span className="clock-time">
       <span className="time-row">

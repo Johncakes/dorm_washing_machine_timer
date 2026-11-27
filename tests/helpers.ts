@@ -30,11 +30,14 @@ export function apiRequest(
   } = {},
 ): Request {
   const headers: Record<string, string> = { host: new URL(base).host };
+
   if (cookie) headers.cookie = cookie;
+
   if (method === "POST") {
     headers.origin = origin;
     headers["content-type"] = "application/json";
   }
+
   return new Request(`${base}/api/laundry/${path}`, {
     method,
     headers,
@@ -46,6 +49,7 @@ export function apiRequest(
 export function mockSamsung(handler: (url: string, init: RequestInit) => Response | Promise<Response>) {
   const spy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => handler(String(input), init ?? {}));
   vi.stubGlobal("fetch", spy);
+
   return spy;
 }
 
@@ -53,8 +57,11 @@ export function mockSamsung(handler: (url: string, init: RequestInit) => Respons
 export function healthySamsung(status: unknown = runningWasher) {
   return mockSamsung((url, init) => {
     if (init.method !== "GET" || init.redirect !== "manual") throw new Error("unexpected request options");
+
     if ((init.headers as Record<string, string>).Authorization !== `Bearer ${TOKEN}`) throw new Error("wrong token");
+
     if (!url.startsWith(`https://api.smartthings.com/v1/devices/${DEVICE_ID}/`)) throw new Error(`unexpected url ${url}`);
+
     return Response.json(url.endsWith("/health") ? { state: "ONLINE" } : status);
   });
 }

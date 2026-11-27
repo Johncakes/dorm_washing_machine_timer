@@ -20,12 +20,14 @@ export function apiError(
   extra: { retryAfter?: number; headers?: Record<string, string> } = {},
 ): Response {
   const body: ApiError = { code, message, ...(extra.retryAfter !== undefined && { retryAfter: extra.retryAfter }) };
+
   return json(body, status, extra.headers);
 }
 
 /** Maps a failed SmartThings read to a safe, user-facing Korean error. Never echoes upstream bodies. */
 export function upstreamErrorResponse(error: unknown, secure: boolean): Response {
   const status = error instanceof UpstreamError ? error.status : 503;
+
   switch (status) {
     case 401:
       return apiError("TOKEN_EXPIRED", "토큰이 만료되었거나 유효하지 않아요. 새 토큰으로 다시 연결해 주세요.", 401, {
@@ -39,11 +41,13 @@ export function upstreamErrorResponse(error: unknown, secure: boolean): Response
       return apiError("PLAN_REQUIRED", "삼성에서 API 이용 조건 또는 사용량 확인을 요청했어요. 자동 조회를 중지했습니다.", 402);
     case 429: {
       const retryAfter = (error as UpstreamError).retryAfter;
+
       return apiError("RATE_LIMIT", "조회 요청이 잠시 제한됐어요. 잠시 후 다시 확인합니다.", 429, {
         retryAfter,
         headers: { "Retry-After": String(retryAfter) },
       });
     }
+
     default:
       return apiError("UPSTREAM_UNAVAILABLE", "삼성에서 최신 상태를 받지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.", 503, {
         retryAfter: 30,

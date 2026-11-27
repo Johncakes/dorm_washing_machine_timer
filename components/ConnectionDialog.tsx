@@ -1,4 +1,5 @@
 "use client";
+
 import { useRef } from "react";
 import type { Feedback } from "@/hooks/useLiveConnection";
 import { Modal } from "./Modal";
@@ -26,13 +27,17 @@ export function ConnectionDialog(props: ConnectionDialogProps) {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const field = input.current;
+
     if (!field) return;
     const token = field.value.trim();
     field.value = "";
+
     if (!token) {
       onFeedback({ message: "토큰을 입력해 주세요.", success: false });
+
       return;
     }
+
     await onConnect(token);
   };
 

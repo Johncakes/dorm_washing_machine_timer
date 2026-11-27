@@ -25,9 +25,11 @@ describe("request guard", () => {
     expect((await connect(apiRequest("connect", { method: "POST", body: { token: TOKEN }, origin: "http://evil.test" }))).status).toBe(403);
     expect((await connect(apiRequest("connect", { method: "POST", body: { token: "bad" } }))).status).toBe(400);
     expect((await session(apiRequest("session", { base: "http://evil.test" }))).status).toBe(403);
+
     const noJson = new Request("http://localhost:3000/api/laundry/connect", {
       method: "POST", headers: { host: "localhost:3000", origin: "http://localhost:3000", "content-type": "text/plain" }, body: "{}",
     });
+
     expect((await connect(noJson)).status).toBe(415);
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -71,11 +73,13 @@ describe("connect → status → disconnect", () => {
   it("returns fresh upstream values and reuses them within the cache window", async () => {
     const cookie = await sealedCookie();
     let remaining = 96;
+
     const fetch = mockSamsung((url) =>
       Response.json(url.endsWith("/health") ? { state: "ONLINE" } : {
         components: { main: { "samsungce.washerOperatingState": { ...runningWasher.components.main["samsungce.washerOperatingState"], remainingTime: { value: remaining } } } },
       }),
     );
+
     expect((await (await status(apiRequest("status", { cookie }))).json()).state.remaining).toBe(96);
     remaining = 90;
     const [a, b] = await Promise.all([status(apiRequest("status", { cookie })), status(apiRequest("status", { cookie }))]);
@@ -124,6 +128,7 @@ describe("upstream failures", () => {
     const response = await connect(apiRequest("connect", { method: "POST", body: { token: TOKEN } }));
     expect(response.status).toBe(503);
     expect(response.headers.get("set-cookie")).toBeNull();
+
     for (const [url] of fetch.mock.calls) expect(String(url)).toMatch(/^https:\/\/api\.smartthings\.com\//);
   });
 

@@ -5,6 +5,7 @@ import { runningWasher } from "../helpers";
 const withModern = (patch: Record<string, unknown>) => {
   const raw = structuredClone(runningWasher) as { components: { main: Record<string, Record<string, unknown>> } };
   Object.assign(raw.components.main["samsungce.washerOperatingState"], patch);
+
   return raw;
 };
 

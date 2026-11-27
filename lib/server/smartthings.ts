@@ -22,11 +22,13 @@ function retrySeconds(response: Response): number {
   const seconds = Number(response.headers.get("retry-after"));
   const resetMs = Number(response.headers.get("x-ratelimit-reset"));
   const wait = seconds > 0 ? seconds : resetMs > 0 ? Math.ceil(resetMs / 1000) : 30;
+
   return Math.max(10, Math.min(300, wait));
 }
 
 async function samsungGet(path: "/status" | "/health", token: string): Promise<unknown> {
   let response: Response;
+
   try {
     response = await fetch(`${API_BASE}/${DEVICE_ID}${path}`, {
       method: "GET",
@@ -39,8 +41,11 @@ async function samsungGet(path: "/status" | "/health", token: string): Promise<u
   } catch {
     throw new UpstreamError(503);
   }
+
   if (response.status >= 300 && response.status < 400) throw new UpstreamError(502);
+
   if (!response.ok) throw new UpstreamError(response.status, retrySeconds(response));
+
   try {
     return await response.json();
   } catch {
@@ -53,16 +58,20 @@ interface Attribute<T = unknown> {
   value?: T | null;
   timestamp?: string;
 }
+
 type Capability = Record<string, Attribute | undefined>;
+
 interface DeviceStatus {
   components?: { main?: Record<string, Capability | undefined> };
 }
+
 interface DeviceHealth {
   state?: string;
 }
 
 const MODERN_STATES: Record<string, MachineStatus> = { running: "running", paused: "paused", ready: "ready" };
 const LEGACY_STATES: Record<string, MachineStatus> = { run: "running", pause: "paused", stop: "ready", idle: "ready" };
+
 const COURSE_NAMES: Record<string, string> = {
   drumCleaning: "무세제 통세척",
   wash: "세탁",
@@ -75,6 +84,7 @@ const COURSE_NAMES: Record<string, string> = {
   finished: "완료",
   none: "대기",
 };
+
 const FALLBACK_COURSE: Partial<Record<MachineStatus, string>> = {
   running: "세탁 중",
   paused: "일시정지",
@@ -84,6 +94,7 @@ const FALLBACK_COURSE: Partial<Record<MachineStatus, string>> = {
 const finite = (value: unknown): number | null => {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
+
   return Number.isFinite(n) ? n : null;
 };
 
@@ -110,6 +121,7 @@ export function normalizeStatus(
   const remaining = status === "running" && remainingValue !== null && remainingValue >= 0 ? Math.round(remainingValue) : null;
   const progressValue = finite(modern.progress?.value);
   const duration = finite(modern.operationTime?.value);
+
   const phase = String(
     modern.washerJobPhase?.value ?? modern.washerJobState?.value ?? standard.washerJobState?.value ?? "",
   );
@@ -137,5 +149,6 @@ export async function readWasherStatus(token: string): Promise<LiveWasherState> 
     samsungGet("/status", token),
     samsungGet("/health", token).catch(() => null),
   ]);
+
   return normalizeStatus(raw, health);
 }

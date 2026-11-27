@@ -23,18 +23,22 @@ const keyStore = globalThis as typeof globalThis & { __laundryTempKey?: string }
 /** LAUNDRY_SESSION_KEY from .env.local, or a per-process temporary key if it is unset. */
 function sessionKey(): string | null {
   const configured = process.env.LAUNDRY_SESSION_KEY;
+
   if (configured) return isValidSessionKey(configured) ? configured : null;
+
   if (!keyStore.__laundryTempKey) {
     console.warn(
       "[laundry] LAUNDRY_SESSION_KEY is not set. Using a temporary key; you will need to reconnect after every restart. Run `npm run gen-key >> .env.local` to keep sessions.",
     );
     keyStore.__laundryTempKey = randomBytes(32).toString("hex");
   }
+
   return keyStore.__laundryTempKey;
 }
 
 function isLocalHost(request: Request): boolean {
   const host = (request.headers.get("host") ?? new URL(request.url).host).toLowerCase();
+
   return LOCAL_HOSTS.has(host.replace(/:\d+$/, ""));
 }
 
@@ -49,12 +53,15 @@ export function guard(request: Request, { mutation = false } = {}): Response | R
   if (!isLocalHost(request)) return apiError("LOCAL_ONLY", "이 서버는 이 컴퓨터에서만 사용할 수 있어요.", 403);
 
   const key = sessionKey();
+
   if (!key) return apiError("SERVER_SETUP", "서버 연결 설정이 준비되지 않았어요. LAUNDRY_SESSION_KEY 값을 확인해 주세요.", 503);
 
   const url = new URL(request.url);
+
   if (mutation) {
     if (request.headers.get("origin") !== url.origin)
       return apiError("ORIGIN_REJECTED", "사이트에서 직접 연결해 주세요.", 403);
+
     if (!request.headers.get("content-type")?.startsWith("application/json"))
       return apiError("CONTENT_TYPE", "올바르지 않은 요청이에요.", 415);
   }

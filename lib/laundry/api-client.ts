@@ -5,6 +5,7 @@ const TIMEOUT_MS = 18_000;
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
+
   try {
     response = await fetch(`/api/laundry/${path}`, {
       cache: "no-store",
@@ -17,6 +18,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
 
   let body: unknown;
+
   try {
     body = await response.json();
   } catch {
@@ -25,7 +27,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       message: "서버 응답을 읽지 못했어요. 서버가 실행 중인지 확인하고 페이지를 새로고침해 주세요.",
     } satisfies ApiError;
   }
+
   if (!response.ok) throw body as ApiError;
+
   return body as T;
 }
 

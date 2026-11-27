@@ -13,6 +13,7 @@ interface MachineCardProps {
 /** One washer or dryer, drawn as an appliance front with its clock-face door. */
 export function MachineCard({ machine, kind, exampleMode, onSelect }: MachineCardProps) {
   const running = machine.status === "running";
+
   return (
     <article className="machine-unit" data-status={machine.status}>
       <div className="machine-label">

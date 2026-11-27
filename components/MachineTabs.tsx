@@ -1,4 +1,5 @@
 "use client";
+
 import { useRef } from "react";
 import { KIND_LABELS } from "@/lib/laundry/format";
 import { MACHINES_PER_KIND } from "@/lib/laundry/machines";
@@ -27,6 +28,7 @@ export function MachineTabs({ selected, onSelect }: MachineTabsProps) {
               ? "dryer"
               : "washer"
             : null;
+
     if (!next) return;
     event.preventDefault();
     onSelect(next);
@@ -37,6 +39,7 @@ export function MachineTabs({ selected, onSelect }: MachineTabsProps) {
     <div className="tabs" role="tablist" aria-label="기기 종류">
       {KINDS.map((kind) => {
         const isSelected = kind === selected;
+
         return (
           <button
             key={kind}

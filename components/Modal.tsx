@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useRef, type ReactNode } from "react";
 
 interface ModalProps {
@@ -20,7 +21,9 @@ export function Modal({ open, onClose, id, labelledBy, children }: ModalProps) {
 
   useEffect(() => {
     const dialog = ref.current;
+
     if (!dialog) return;
+
     if (open && !dialog.open) {
       opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       dialog.showModal();
@@ -35,15 +38,18 @@ export function Modal({ open, onClose, id, labelledBy, children }: ModalProps) {
 
   const handleClose = () => {
     document.body.style.overflow = "";
+
     if (opener.current?.isConnected) opener.current.focus();
     onClose();
   };
 
   const handleClick = (event: React.MouseEvent<HTMLDialogElement>) => {
     const dialog = ref.current;
+
     if (!dialog || event.target !== dialog) return;
     const r = dialog.getBoundingClientRect();
     const outside = event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom;
+
     if (outside) dialog.close();
   };
 

@@ -1,4 +1,5 @@
 "use client";
+
 import { useCallback, useEffect, useReducer } from "react";
 import { laundryApi, toApiError } from "@/lib/laundry/api-client";
 import type { LivePhase } from "@/lib/laundry/connection-copy";
@@ -54,6 +55,7 @@ const initialState: State = {
 
 /** Errors that mean the session is gone. */
 const SESSION_ENDED = new Set(["TOKEN_EXPIRED", "NOT_CONNECTED"]);
+
 /** Errors that retrying won't fix. */
 const STOP_POLLING = new Set(["BAD_RESPONSE", "PLAN_REQUIRED", "PERMISSION"]);
 
@@ -80,6 +82,7 @@ function reducer(state: State, action: Action): State {
     case "pollFailed": {
       const { error } = action;
       const ended = SESSION_ENDED.has(error.code);
+
       return {
         ...state,
         active: state.active && !ended && !STOP_POLLING.has(error.code),
@@ -89,6 +92,7 @@ function reducer(state: State, action: Action): State {
         feedback: { message: error.message, success: false },
       };
     }
+
     case "connecting":
       return { ...state, connecting: true, feedback: null };
     case "connected":
@@ -133,10 +137,12 @@ export function useLiveConnection() {
       },
       (error) => {
         const apiError = toApiError(error, "");
+
         if (!cancelled && (apiError.code === "SERVER_SETUP" || apiError.code === "LOCAL_ONLY"))
           dispatch({ type: "setupError", message: apiError.message });
       },
     );
+
     return () => {
       cancelled = true;
     };
@@ -151,18 +157,23 @@ export function useLiveConnection() {
 
     const poll = async () => {
       let delay = POLL_INTERVAL_MS;
+
       try {
         const body = await laundryApi.status();
+
         if (!cancelled) dispatch({ type: "live", state: body.state });
       } catch (error) {
         const apiError = toApiError(error, "최신 정보를 확인하지 못했어요.");
+
         if (!cancelled) dispatch({ type: "pollFailed", error: apiError });
         delay = retryDelay(apiError);
       }
+
       if (!cancelled) timer = setTimeout(poll, delay);
     };
 
     void poll();
+
     return () => {
       cancelled = true;
       clearTimeout(timer);
@@ -171,6 +182,7 @@ export function useLiveConnection() {
 
   const connect = useCallback(async (token: string) => {
     dispatch({ type: "connecting" });
+
     try {
       const body = await laundryApi.connect(token);
       dispatch({ type: "connected", state: body.state });
@@ -181,6 +193,7 @@ export function useLiveConnection() {
 
   const disconnect = useCallback(async () => {
     dispatch({ type: "disconnecting" });
+
     try {
       await laundryApi.disconnect();
       dispatch({ type: "disconnected" });

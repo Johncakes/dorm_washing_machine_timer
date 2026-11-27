@@ -24,6 +24,7 @@ function facts(m: Machine, exampleMode: boolean): [string, string][] {
     ["위치", "율곡관 지하 1층"],
     ["작동 상태", STATUS_LABELS[m.status]],
   ];
+
   if (m.status === "running") {
     rows.push(
       ["남은 시간", isTimed(m) ? formatMinutes(m.remaining) : "확인 중"],
@@ -31,9 +32,13 @@ function facts(m: Machine, exampleMode: boolean): [string, string][] {
       ["현재 과정", m.course ?? "확인 중"],
     );
   }
+
   rows.push(["정보 구분", sourceDescription(m, exampleMode)]);
+
   if (m.checkedAt) rows.push(["마지막 확인", koreanTime(m.checkedAt)]);
+
   if (m.updatedAt) rows.push(["기기 값 갱신", koreanTime(m.updatedAt)]);
+
   return rows;
 }
 

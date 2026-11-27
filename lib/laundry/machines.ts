@@ -5,6 +5,7 @@ export const MACHINES_PER_KIND = 5;
 /** Every machine before any connection: unknown status. */
 export function unconnectedMachines(): Record<MachineKind, Machine[]> {
   const make = () => Array.from({ length: MACHINES_PER_KIND }, (_, i): Machine => ({ id: i + 1, status: "unknown" }));
+
   return { washer: make(), dryer: make() };
 }
 
@@ -32,6 +33,8 @@ export const EXAMPLE_MACHINES: Record<MachineKind, Machine[]> = {
 /** Real machines with the live washer (if any) slotted in. */
 export function withLiveWasher(liveWasher: Machine | null): Record<MachineKind, Machine[]> {
   const machines = unconnectedMachines();
+
   if (liveWasher) machines.washer[LIVE_WASHER_ID - 1] = { ...liveWasher, id: LIVE_WASHER_ID, live: true };
+
   return machines;
 }

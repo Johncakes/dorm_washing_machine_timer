@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import { useLiveConnection } from "@/hooks/useLiveConnection";
 import { badge, bannerText, recordLabel, summaryMode, syncText } from "@/lib/laundry/connection-copy";
