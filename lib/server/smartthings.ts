@@ -17,9 +17,12 @@ export class UpstreamError extends Error {
   }
 }
 
+/** Backoff in seconds from Retry-After or SmartThings' x-ratelimit-reset (ms), clamped to 10–300. */
 function retrySeconds(response: Response): number {
   const seconds = Number(response.headers.get("retry-after"));
-  return Number.isFinite(seconds) && seconds > 0 ? Math.min(300, Math.ceil(seconds)) : 30;
+  const resetMs = Number(response.headers.get("x-ratelimit-reset"));
+  const wait = seconds > 0 ? seconds : resetMs > 0 ? Math.ceil(resetMs / 1000) : 30;
+  return Math.max(10, Math.min(300, wait));
 }
 
 async function samsungGet(path: "/status" | "/health", token: string): Promise<unknown> {

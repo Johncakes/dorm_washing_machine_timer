@@ -89,3 +89,11 @@ export function readSessionCookie(request: Request, secure: boolean): string | u
     .find((part) => part.startsWith(prefix))
     ?.slice(prefix.length);
 }
+
+/** Decrypts the session cookie on `request`, or returns null if there is no valid session. */
+export function loadSession(
+  request: Request,
+  ctx: { secure: boolean; sessionKey: string; userId: string },
+): Promise<Session | null> {
+  return openSession(readSessionCookie(request, ctx.secure), ctx.sessionKey, ctx.userId);
+}
