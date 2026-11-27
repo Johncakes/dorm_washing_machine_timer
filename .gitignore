@@ -11,10 +11,6 @@
 
 # Generated builds and framework state
 /dist/
-/.next/
-/.vinext/
-/out/
-next-env.d.ts
 *.tsbuildinfo
 
 # Test output
@@ -31,10 +27,6 @@ yarn-error.log*
 .dev.vars*
 *.pem
 
-# Checkout-local tool state
-/.wrangler/
-/.sites-runtime/
-
 # Workspace scaffolding and publication archives
 /.agents/
 /.codex/
@@ -44,3 +36,8 @@ yarn-error.log*
 # OS metadata
 .DS_Store
 !.env.example
+
+# Next.js
+/.next/
+/out/
+next-env.d.ts

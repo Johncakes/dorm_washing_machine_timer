@@ -13,65 +13,50 @@
 
 웹사이트에서 실제 토큰을 입력한 뒤 정상 동작하는지에 대한 최종 확인은 소유자가 수행해야 합니다. 나머지 기기 연결, 장기 OAuth 갱신, 학생 전체에게 제공할 공유 운영 구조는 아직 구현되지 않았습니다. 조회 간격을 줄여도 세탁기 자체의 보고 주기가 더 빨라지는 것은 아닙니다.
 
-## 가져온 소스
+## 구성
 
-기존 Sites **버전 6**의 소스 스냅샷을 복사했습니다.
+로컬 컴퓨터에서 실행하는 단순한 Vite 프로젝트입니다.
 
-- 원본 커밋: `d87a1679c26a5d1fe3cc1aff72073d3114b1ebda`
-- 기존 웹사이트: https://sinsa-smart-laundry.yeeuni0276.chatgpt.site/
-- 이 저장소에 코드를 올리는 것과 웹사이트를 배포하는 것은 별개입니다.
-- GitHub에 push해도 기존 Site에 자동 반영되지 않습니다.
-- 기존 사이트의 공개 범위와 서버 비밀 설정은 이 복사 작업으로 변경되지 않습니다.
+- 화면: `index.html` + `src/app.js` + `src/style.css` (프레임워크 없음)
+- API: `server/laundry-server.mjs`의 `fetch` 형식 핸들러를 Vite 플러그인(`server/vite-plugin.mjs`)이 개발·미리보기 서버에 연결
+- 의존성: `vite` 하나
+
+기존 Sites **버전 6**(원본 커밋 `d87a1679c26a5d1fe3cc1aff72073d3114b1ebda`)에서 가져온 뒤 Sites·Next/Vinext·Cloudflare Worker 구성을 제거했습니다. 이 저장소는 기존 웹사이트(https://sinsa-smart-laundry.yeeuni0276.chatgpt.site/)에 배포되지 않으며, 기존 사이트는 이 변경의 영향을 받지 않습니다.
 
 ## 로컬 실행
 
-Node.js **22.13 이상**과 npm이 필요합니다.
+Node.js **20.19 이상**과 npm이 필요합니다.
 
 ```sh
 git clone https://github.com/yeeuni-svg/dorm_washing_machine_timer.git
 cd dorm_washing_machine_timer
-npm run install:ci
-npm run dev
+npm install
+npm run gen-key > .env.local   # 세션 암호화 키 생성 (최초 1회)
+npm run dev                    # http://localhost:5173
 ```
 
-일반 로컬 실행은 5173 포트를 요청합니다. 터미널에 출력되는 실제 주소를 사용하세요. 원본 Vinext/React 및 Cloudflare Worker 구성을 유지했습니다.
-
-의존성 설치 없이 실행할 수 있는 서버 테스트:
-
-```sh
-node --test tests/laundry-server.test.mjs
-```
-
-의존성 설치 후 빌드:
-
-```sh
-npm run build
-```
-
-이전 과정에서 서버 테스트 7개가 모두 통과했습니다. 새 환경에서의 전체 의존성 설치·프레임워크 빌드·실제 삼성 계정 연결은 이번 이전 작업의 검증 범위에 포함되지 않습니다.
+- `.env.local`이 없으면 실행할 때마다 임시 키를 만들기 때문에, 서버를 재시작하면 SmartThings에 다시 연결해야 합니다.
+- 빌드 결과 확인: `npm run build && npm run preview` (http://localhost:4173)
+- 테스트: `npm test` (모의 삼성 응답 사용, 네트워크 불필요)
 
 ## 주요 파일
 
 | 경로 | 역할 |
 | --- | --- |
-| `public/app.js`, `public/style.css` | 화면 동작과 스타일 |
-| `lib/page-markup.ts` | 대시보드 마크업 |
-| `app/` | React/Vinext 페이지 구성 |
-| `lib/laundry-server.mjs` | 삼성 API 조회·상태 정규화·암호화 세션 |
-| `worker/index.ts` | Cloudflare Worker 진입점 |
-| `tests/laundry-server.test.mjs` | 모의 삼성 응답을 사용하는 서버 테스트 |
+| `index.html` | 대시보드 마크업 |
+| `src/app.js`, `src/style.css` | 화면 동작과 스타일 |
+| `server/laundry-server.mjs` | 삼성 API 조회·상태 정규화·암호화 세션 |
+| `server/vite-plugin.mjs` | Node 요청 ↔ `fetch` 변환, localhost 전용 API 연결 |
+| `vite.config.js` | 서버 포트와 세션 키 로드 |
+| `tests/laundry-server.test.mjs` | 서버 테스트 |
 | `LIVE-CONNECTION.md` | 연결 구조 및 운영상 제약 |
-| `.openai/hosting.json` | 기존 Site 식별자와 배포 설정 |
 
-## 인증 및 배포 시 주의할 점
+## 보안 및 주의할 점
 
-실제 SmartThings PAT, 세션 암호화 키, 브라우저 쿠키, Sites 접근용 토큰은 포함하지 않았습니다. `.env.example`에는 빈 설정 이름만 있습니다. 실제 비밀 값은 배포 서비스의 비밀 설정이나 Git에서 제외된 로컬 설정으로 관리하세요.
-
-기존 Site는 `LAUNDRY_SESSION_KEY`를 런타임 비밀로 보관합니다. 소유자가 비공개 웹사이트에서 PAT를 입력하면 서버가 이를 사용자에 묶인 HttpOnly·Secure 암호화 쿠키로 저장합니다. 세션은 최대 24시간이며 PAT 자체의 만료 시간을 연장하지 않습니다. 실제 토큰을 공개된 테스트 서버나 신뢰할 수 없는 환경에 입력하지 마세요.
-
-**현재 서버 인증은 Sites의 비공개 접근 게이트에 의존합니다.** 외부 호스팅으로 옮길 경우 `oai-authenticated-user-id` 요청 헤더만으로 사용자를 인증하면 안 됩니다. 클라이언트가 보낸 헤더를 신뢰하지 않는 검증된 인증 계층을 먼저 구현해야 합니다. 진단 API도 기존의 비공개 게이트를 전제로 합니다. 로컬 화면이 열린다는 사실만으로 실제 인증·연동이 구성된 것은 아닙니다.
-
-이 서비스의 서버 코드는 GitHub Pages에서 실행할 수 없습니다. 외부 배포에는 서버 런타임, 비밀 설정, 인증 방식 구성이 필요합니다.
+- **이 서버는 본인 컴퓨터에서 혼자 쓰는 용도입니다.** 로그인 기능이 없으며, 단일 로컬 사용자로 동작합니다. API는 `localhost`·`127.0.0.1`·`[::1]` 주소로 온 요청에만 응답합니다. `--host`로 열거나 외부에 공개하지 마세요.
+- SmartThings PAT는 화면의 연결 창에 입력합니다. 서버는 이를 AES-GCM으로 암호화해 HttpOnly·SameSite=Strict 쿠키에 저장하며 최대 24시간 유지합니다. HTTPS로 접속하면 `__Host-`·Secure 쿠키를 사용합니다.
+- 실제 PAT와 `LAUNDRY_SESSION_KEY`는 Git에서 제외된 `.env.local`에만 두고 커밋하지 마세요.
+- 여러 학생에게 제공하려면 별도의 인증 계층과 서버 호스팅이 필요합니다.
 
 ## 다음 개발 작업
 
