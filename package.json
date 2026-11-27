@@ -10,7 +10,7 @@
     "dev": "next dev -H localhost",
     "build": "next build",
     "start": "next start -H localhost",
-    "lint": "eslint .",
+    "lint": "eslint . && oxlint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -23,11 +23,13 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@oxlint/plugins": "1.95.0",
     "@types/node": "^22.20.7",
     "@types/react": "^19.3.3",
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.4.6",
+    "oxlint": "1.95.0",
     "typescript": "^5.9.3",
     "vitest": "^5.1.2"
   }
